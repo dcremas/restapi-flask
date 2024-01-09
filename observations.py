@@ -52,8 +52,7 @@ WHERE obs.station IN {stations_tuple}
     AND obs.report_type IN ('FM-15')
     AND obs.slp BETWEEN 20.00 AND 35.00
     AND obs.prp <= 10.00
-ORDER BY obs.station, obs.date
-LIMIT 100;
+ORDER BY obs.station, obs.date;
 '''
 
 def get_all_observations():
@@ -111,8 +110,7 @@ WHERE obs.station = %s
     AND obs.report_type IN ('FM-15')
     AND obs.slp BETWEEN 20.00 AND 35.00
     AND obs.prp <= 10.00
-ORDER BY obs.station, obs.date
-LIMIT 100;
+ORDER BY obs.station, obs.date;
 '''
             , (stationid,)) 
             observations = cursor.fetchall()
@@ -163,7 +161,8 @@ JOIN locations loc
     ON obs.station = loc.station
 JOIN regions rgn
     ON loc.state = rgn.state
-WHERE EXTRACT(year from date) = {year}
+WHERE obs.station IN {stations_tuple}
+    AND EXTRACT(year from date) = {year}
     AND EXTRACT(month from date) = {month}
     AND EXTRACT (day from date) = {day}
     AND obs.source IN ('6', '7')
