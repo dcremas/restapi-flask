@@ -42,13 +42,31 @@ components:
 paths:
   /observations:
     get:
-      operationId: "observations.get_all_observations"
+      operationId: "observations.get_all_observations_sample"
       tags:
         - "Observations"
-      summary: "Read the list of all observations"
+      summary: "Read a sample of 100 observations in the database"
       responses:
         "200":
-          description: "Succesfully read observations list"
+          description: "Succesfully read sample observations data"
+  /stations:
+    get:
+      operationId: "observations.get_all_stations"
+      tags:
+        - "Stations"
+      summary: "Read the list of all stations in the database"
+      responses:
+        "200":
+          description: "Succesfully read stations list"
+  /dates:
+    get:
+      operationId: "observations.get_all_dates"
+      tags:
+        - "Dates"
+      summary: "Read the list of all dates in the database"
+      responses:
+        "200":
+          description: "Succesfully read dates list"
   /observations/date/{date}:
     get:
       operationId: "observations.get_all_date"
