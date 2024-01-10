@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
-  title: "Weatherdata Flask REST API"
-  description: "An API about hourly weather observations across the US"
+  title: "Hourly Weather data Flask REST API"
+  description: "An API to explore historical hourly weather observations data from Airport Locations across the US"
   version: "1.0.0"
 
 servers:
@@ -54,7 +54,7 @@ paths:
       operationId: "observations.get_all_stations"
       tags:
         - "Stations"
-      summary: "Read the list of all stations in the database"
+      summary: "Read the list of all stations in the database, with the StationID primary key."
       responses:
         "200":
           description: "Succesfully read stations list"
@@ -63,21 +63,10 @@ paths:
       operationId: "observations.get_all_dates"
       tags:
         - "Dates"
-      summary: "Read the list of all dates in the database"
+      summary: "Read the list of all dates in the database, with the properly formatted Date."
       responses:
         "200":
           description: "Succesfully read dates list"
-  /observations/date/{date}:
-    get:
-      operationId: "observations.get_all_date"
-      tags:
-        - Date
-      summary: "Read one date"
-      parameters:
-        - $ref: "#/components/parameters/date"
-      responses:
-        "200":
-          description: "Successfully read one date"
   /observations/station/{stationid}:
     get:
       operationId: "observations.get_all_stationid"
@@ -89,3 +78,14 @@ paths:
       responses:
         "200":
           description: "Successfully read one station"
+  /observations/date/{date}:
+    get:
+      operationId: "observations.get_all_date"
+      tags:
+        - Date
+      summary: "Read one date"
+      parameters:
+        - $ref: "#/components/parameters/date"
+      responses:
+        "200":
+          description: "Successfully read one date"
