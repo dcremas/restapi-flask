@@ -173,6 +173,7 @@ JOIN regions rgn
     ON loc.state = rgn.state
 WHERE obs.station = %s
     AND EXTRACT(YEAR from obs.date) BETWEEN 2024 AND 2024
+    AND EXTRACT(MONTH from obs.date) = 1
     AND obs.source IN ('6', '7')
     AND obs.report_type IN ('FM-15')
     AND obs.slp BETWEEN 20.00 AND 35.00
