@@ -10,7 +10,7 @@
 
 - Designing and implementing a 'live' RESTful API that allows for multiple endpoints, so that you can pull the data you wish for whatever need you have.
 - Harnessing a back-end AWS RD Postgres database that houses rich historical weather information from  a data pipeline.  All data was sourced from the NOAA public data records.
-- Data on 112 US Airport locations, currently available for the year 2023.
+- Data on 112 US Airport locations, currently available for the year 2024.
 
 ##### Technologies:
 
