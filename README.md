@@ -1,4 +1,4 @@
-### Title: Fully Functioning RESTful API the Hourly Weather Observation Source Data
+### Title: Fully Functioning RESTful API allowing access to the Hourly Weather Observation Source Data
 
 ### *To see the full codebase for this project:* [Link to my github account](https://github.com/dcremas/restapi-flask) 
 
