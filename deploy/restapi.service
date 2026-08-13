@@ -1,0 +1,58 @@
+[Unit]
+Description=Weather Data API (Flask/gunicorn)
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+User=ec2-user
+# Group is nginx, not ec2-user, deliberately: RuntimeDirectory and the gunicorn
+# socket inherit this group, and it is the only thing that lets nginx (uid nginx)
+# open the socket. With Group=ec2-user the directory is 0750 ec2-user:ec2-user and
+# every proxied request fails "13: Permission denied" while the app itself still
+# reports healthy — the same trap the other two services on this box document.
+Group=nginx
+WorkingDirectory=/home/ec2-user/restapi_flask
+
+# Secrets live here, root-owned, never rsynced from a laptop.
+EnvironmentFile=/etc/restapi/restapi.env
+
+ExecStart=/home/ec2-user/restapi_flask/.venv/bin/gunicorn \
+    --config /home/ec2-user/restapi_flask/deploy/gunicorn.conf.py \
+    'app:app'
+
+RuntimeDirectory=restapi
+RuntimeDirectoryMode=0750
+Restart=on-failure
+RestartSec=3
+# Don't hammer a broken dependency: if it fails 5 times in a minute, stop and
+# leave it stopped so the failure is visible rather than a restart loop.
+StartLimitIntervalSec=60
+StartLimitBurst=5
+TimeoutStopSec=30
+
+# Hardening. This service is read-only in every sense: it writes no files at all,
+# so it gets no writable path beyond its runtime directory.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=/run/restapi
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+ProtectProc=invisible
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+RestrictNamespaces=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=true
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+# Bound the blast radius on a box shared with Postgres and two websites.
+MemoryMax=512M
+TasksMax=64
+
+[Install]
+WantedBy=multi-user.target
