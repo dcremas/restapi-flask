@@ -9,11 +9,13 @@ Two datasets, one service:
 
 | Dataset | Database | Contents |
 |---|---|---|
-| `historical` | `weatherdata` | NOAA hourly surface observations — 8.0M rows, 112 stations, 2019 to present |
+| `historical` | `weatherdata` | NOAA hourly surface observations — **9.19M rows** (2026-08-25), 112 stations, 2019 to present |
 | `forecast` | `apple_weatherkit` | Apple WeatherKit hourly forecasts — rolling ~20-day window, same 112 stations |
 
 ```
 app.py         factory, config, JSON provider, request lifecycle, /docs, /health, /ready
+               (also `_SITES` — one of seven copies of the estate-wide footer row;
+               `../prosite_flask/content.py` is canonical, `../check-footer-nav.sh` checks it)
 db.py          connection pools, per-connection guards, health probes
 datasets.py    the two Dataset records: all SQL lives here
 routes.py      the /v1 endpoints: validation, pagination, caching
@@ -62,7 +64,7 @@ Each of these is a fix for something that was actually wrong or missing before.
 - **Indexes that match the queries.** `observations` had an index on `station`
   only, and the old date endpoint filtered on `EXTRACT(year/month/day FROM
   date)` — a function call no index can satisfy, so **every date request
-  sequentially scanned 8M rows**. Rewritten as a half-open range against
+  sequentially scanned every row in the table** (8M then, 9.2M now). Rewritten as a half-open range against
   `(station, date)` and `(date)`: a single-day count went from a parallel seq
   scan to an Index Only Scan at **0.4 ms**, and a station-month page to
   **0.12 ms**.
@@ -73,7 +75,7 @@ Each of these is a fix for something that was actually wrong or missing before.
   mid-request.
 - **Bounded work per request.** `limit` is capped at 1000 and `offset` at
   100000; `/dates` defaults to a 60-day window rather than grouping the whole
-  table. No endpoint can be asked to materialise 8M rows.
+  table. No endpoint can be asked to materialise the whole table.
 - **Partial failure stays partial.** Pools are per dataset and opened lazily, so
   if one database is unreachable the other's endpoints keep serving and `/ready`
   reports `degraded` rather than taking the whole API out of rotation.
