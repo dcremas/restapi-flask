@@ -78,10 +78,23 @@ if [ -x ${REMOTE}/.venv/bin/pip ]; then
 fi
 sudo systemctl restart restapi
 sleep 2
+
+# /docs and the JSON index are proxy_cached by nginx for an hour (api.conf,
+# \`proxy_cache api_cache\`). Without this purge a deploy is invisible on the
+# public URL until the entry expires, while the socket below happily reports the
+# new code -- which is exactly how a footer change looked "deployed but not
+# live" on 2026-08-24. Cache files are derived data; nginx refills them on the
+# next request.
+sudo find /var/cache/nginx/api -type f -delete 2>/dev/null || true
+sudo systemctl reload nginx
+
 echo "--- status ---"
 systemctl is-active restapi
 echo "--- health ---"
-curl -s --unix-socket /run/recipes/recipes.sock http://localhost/health || echo "(socket not reachable)"
+# THIS service's socket. It read /run/recipes/recipes.sock until 2026-08-24 --
+# a copy-paste from recipes_flask/deploy/deploy.sh that made every API deploy
+# print a healthy-looking line describing a completely different application.
+curl -s --unix-socket /run/restapi/restapi.sock http://localhost/health || echo "(socket not reachable)"
 echo
 REMOTE_EOF
 

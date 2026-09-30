@@ -300,6 +300,61 @@ def _register_meta_routes(app: Flask) -> None:
         return response
 
 
+# --------------------------------------------------------------------------- #
+# The cross-site footer
+# --------------------------------------------------------------------------- #
+#
+# Swagger UI ends at the last endpoint and offers nothing after it -- no way
+# back to the site this API belongs to, no way across to the other services on
+# the box. This is the same five-property row every other surface here puts at
+# the bottom of the page.
+#
+# Keep in step with prosite_flask/content.py SITES -- that is the canonical copy
+# and its comment names all seven. ../check-footer-nav.sh diffs them and exits
+# non-zero when they disagree.
+#
+# `/docs` is relative because it is this service; everything else is a different
+# subdomain and opens in a new tab, which is the rule the Jinja footer applies
+# too.
+_SITES = [
+    ("www", "Main site", "https://www.dustincremascoli.com/"),
+    ("viz", "Data Viz", "https://www.dustincremascoli.com/visualizations"),
+    ("sql", "SQL Explorer", "https://sql.dustincremascoli.com/"),
+    ("api", "Weather API", "/docs"),
+    ("recipes", "Recipes", "https://recipes.dustincremascoli.com/"),
+]
+
+_SITES_CURRENT = "api"
+
+_SITES_LABEL = "Everything here"
+
+
+def _footer_items() -> str:
+    out = []
+    for i, (key, label, href) in enumerate(_SITES):
+        current = key == _SITES_CURRENT
+        mark = ' aria-current="page"' if current else ""
+        tab = "" if href.startswith("/") else ' target="_blank" rel="noopener noreferrer"'
+        # The separator sits inside the <li>; a bare <span> child of a <ul> is
+        # invalid and the parser lifts it out of the list.
+        sep = "" if i == len(_SITES) - 1 else '<span class="sep" aria-hidden="true">·</span>'
+        out.append(f'<li><a href="{href}"{mark}{tab}>{label}</a>{sep}</li>')
+    return "".join(out)
+
+
+# Swagger UI ships its own stylesheet and nothing of ours, so the footer carries
+# its own rules. Scoped under .site-footer so none of it can reach the API
+# reference above it.
+_FOOTER_HTML = f"""
+  <footer class="site-footer">
+    <nav aria-label="Site">
+      <p class="footer-nav-label">{_SITES_LABEL}</p>
+      <ul>{_footer_items()}</ul>
+    </nav>
+    <p class="credit">Produced with the aid of Claude Code&#39;s Command Line tools...</p>
+  </footer>
+"""
+
 _DOCS_HTML = """<!doctype html>
 <html lang="en">
 <head>
@@ -310,6 +365,24 @@ _DOCS_HTML = """<!doctype html>
   <style>
     body { margin: 0; background: #fafafa; }
     .topbar { display: none; }
+    .site-footer {
+      max-width: 1460px; margin: 0 auto; padding: 1.6rem 20px 2.4rem;
+      border-top: 1px solid #e2e8f0;
+      font: 400 1rem/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    .site-footer .footer-nav-label {
+      margin: 0 0 .45rem; font-size: .68rem; font-weight: 650;
+      letter-spacing: .08em; text-transform: uppercase; color: #7d8894;
+    }
+    .site-footer ul {
+      list-style: none; margin: 0; padding: 0;
+      display: flex; flex-wrap: wrap; gap: .2rem .3rem; font-size: .9rem;
+    }
+    .site-footer a { color: #0b6bcb; text-decoration: none; font-weight: 550; }
+    .site-footer a:hover { text-decoration: underline; }
+    .site-footer a[aria-current] { color: #7d8894; font-weight: 650; }
+    .site-footer .sep { color: #cbd5e1; margin: 0 .4rem; }
+    .site-footer .credit { margin: .9rem 0 0; font-size: .78rem; color: #7d8894; }
   </style>
 </head>
 <body>
@@ -327,9 +400,12 @@ _DOCS_HTML = """<!doctype html>
       layout: "StandaloneLayout"
     });
   </script>
+<!--SITE_FOOTER-->
 </body>
 </html>
 """
+
+_DOCS_HTML = _DOCS_HTML.replace("<!--SITE_FOOTER-->", _FOOTER_HTML)
 
 
 app = create_app()
