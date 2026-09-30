@@ -306,7 +306,7 @@ def _register_meta_routes(app: Flask) -> None:
 #
 # Swagger UI ends at the last endpoint and offers nothing after it -- no way
 # back to the site this API belongs to, no way across to the other services on
-# the box. This is the same five-property row every other surface here puts at
+# the box. This is the same eight-property row every other surface here puts at
 # the bottom of the page.
 #
 # Keep in step with prosite_flask/content.py SITES -- that is the canonical copy
@@ -321,6 +321,9 @@ _SITES = [
     ("viz", "Data Viz", "https://www.dustincremascoli.com/visualizations"),
     ("sql", "SQL Explorer", "https://sql.dustincremascoli.com/"),
     ("api", "Weather API", "/docs"),
+    ("pbp", "Football SQL", "https://pbp.dustincremascoli.com/"),
+    ("plays", "Play Explorer", "https://pbp.dustincremascoli.com/plays/"),
+    ("typing", "PromptPace", "https://typing.dustincremascoli.com/"),
     ("recipes", "Recipes", "https://recipes.dustincremascoli.com/"),
 ]
 
