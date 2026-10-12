@@ -3,6 +3,12 @@ Description=Weather Data API (Flask/gunicorn)
 After=network-online.target postgresql.service
 Wants=network-online.target
 
+# Start rate limiting is a [Unit] property; in [Service] systemd ignores it.
+# Don't hammer a broken dependency: if it fails 5 times in a minute, stop and
+# leave it stopped so the failure is visible rather than a restart loop.
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
 [Service]
 User=ec2-user
 # Group is nginx, not ec2-user, deliberately: RuntimeDirectory and the gunicorn
@@ -24,10 +30,6 @@ RuntimeDirectory=restapi
 RuntimeDirectoryMode=0750
 Restart=on-failure
 RestartSec=3
-# Don't hammer a broken dependency: if it fails 5 times in a minute, stop and
-# leave it stopped so the failure is visible rather than a restart loop.
-StartLimitIntervalSec=60
-StartLimitBurst=5
 TimeoutStopSec=30
 
 # Hardening. This service is read-only in every sense: it writes no files at all,
