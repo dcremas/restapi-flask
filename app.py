@@ -22,6 +22,7 @@ from decimal import Decimal
 
 from dotenv import load_dotenv
 from flask import Flask, Response, g, jsonify, request, send_from_directory
+from markupsafe import escape
 from flask.json.provider import DefaultJSONProvider
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -226,6 +227,7 @@ def _register_meta_routes(app: Flask) -> None:
             version="1.0.0",
             documentation=f"{request.host_url.rstrip('/')}/docs",
             openapi=f"{request.host_url.rstrip('/')}/openapi.json",
+            problems=f"{request.host_url.rstrip('/')}/problems",
             datasets={
                 key: {
                     "title": d.title,
@@ -235,7 +237,7 @@ def _register_meta_routes(app: Flask) -> None:
                         f"/v1/{key}/dates",
                         f"/v1/{key}/observations",
                         f"/v1/{key}/observations/station/{{station_id}}",
-                        f"/v1/{key}/observations/date/{{date}}",
+                        f"/v1/{key}/observations/date/{{date_str}}",
                     ],
                 }
                 for key, d in DATASETS.items()
@@ -258,6 +260,46 @@ def _register_meta_routes(app: Flask) -> None:
         public API.
         """
         return Response(_DOCS_HTML, mimetype="text/html")
+
+    @app.get("/problems")
+    def problems_index():
+        """Human-readable index of every problem `type` URI this API emits.
+
+        HTML, not JSON, and deliberately absent from /openapi.json: these are
+        the documentation pages RFC 9457 says a problem type URI should resolve
+        to, not API operations.
+        """
+        rows = "".join(
+            f'<li><a href="/problems/{slug}"><code>{slug}</code></a> — '
+            f"{status} {escape(title)}</li>"
+            for slug, (status, title, _desc) in errors.PROBLEMS.items()
+        )
+        body = (
+            "<h1>Problem types</h1>"
+            "<p>Every error from this API is an RFC 9457 problem-details object "
+            "(<code>application/problem+json</code>) whose <code>type</code> is one "
+            "of these URIs.</p>"
+            f"<ul>{rows}</ul>"
+        )
+        return _problem_page("Problem types", body)
+
+    @app.get("/problems/<slug>")
+    def problem_type(slug: str):
+        entry = errors.PROBLEMS.get(slug)
+        if entry is None:
+            raise errors.NotFound(f"No problem type {slug!r}. See /problems for the list.")
+        status, title, desc = entry
+        body = (
+            '<p class="crumbs"><a href="/problems">Problem types</a></p>'
+            f"<h1>{escape(title)}</h1>"
+            f"<p><strong>HTTP {status}</strong> · <code>type</code>: "
+            f"<code>{errors.PROBLEM_BASE}/{slug}</code></p>"
+            f"<p>{escape(desc)}</p>"
+            "<p>Every problem body carries <code>title</code>, <code>status</code>, "
+            "<code>instance</code> (the request path) and usually <code>detail</code> "
+            "and <code>request_id</code>.</p>"
+        )
+        return _problem_page(title, body)
 
     @app.get("/docs/<path:filename>")
     def docs_asset(filename: str):
@@ -313,9 +355,10 @@ def _register_meta_routes(app: Flask) -> None:
 # and its comment names all seven. ../check-footer-nav.sh diffs them and exits
 # non-zero when they disagree.
 #
-# `/docs` is relative because it is this service; everything else is a different
-# subdomain and opens in a new tab, which is the rule the Jinja footer applies
-# too.
+# `/docs` is relative because it is this service. Every entry opens in the same
+# tab: /docs is a browsing page with nothing in memory to lose, so the estate
+# link policy (2026-10-13) gives it no new-tab links — and therefore no new-tab
+# cue to carry.
 _SITES = [
     ("www", "Main site", "https://www.dustincremascoli.com/"),
     ("viz", "Data Viz", "https://www.dustincremascoli.com/visualizations"),
@@ -332,42 +375,40 @@ _SITES_CURRENT = "api"
 _SITES_LABEL = "Everything here"
 
 
-def _footer_items() -> str:
+def _footer_items(here: str) -> str:
+    """The row's <li>s, as rendered on the page at path `here`.
+
+    This service's own entry carries aria-current="page" on /docs, where that is
+    literally true, and aria-current="true" ("this site") on any other page here.
+    """
     out = []
     for i, (key, label, href) in enumerate(_SITES):
-        current = key == _SITES_CURRENT
-        mark = ' aria-current="page"' if current else ""
-        tab = "" if href.startswith("/") else ' target="_blank" rel="noopener noreferrer"'
+        mark = ""
+        if key == _SITES_CURRENT:
+            mark = f' aria-current="{"page" if href == here else "true"}"'
         # The separator sits inside the <li>; a bare <span> child of a <ul> is
         # invalid and the parser lifts it out of the list.
         sep = "" if i == len(_SITES) - 1 else '<span class="sep" aria-hidden="true">·</span>'
-        out.append(f'<li><a href="{href}"{mark}{tab}>{label}</a>{sep}</li>')
+        out.append(f'<li><a href="{href}"{mark}>{label}</a>{sep}</li>')
     return "".join(out)
 
 
-# Swagger UI ships its own stylesheet and nothing of ours, so the footer carries
-# its own rules. Scoped under .site-footer so none of it can reach the API
-# reference above it.
-_FOOTER_HTML = f"""
+def _footer_html(here: str) -> str:
+    return f"""
   <footer class="site-footer">
     <nav aria-label="Site">
       <p class="footer-nav-label">{_SITES_LABEL}</p>
-      <ul>{_footer_items()}</ul>
+      <ul>{_footer_items(here)}</ul>
     </nav>
     <p class="credit">Produced with the aid of Claude Code&#39;s Command Line tools...</p>
   </footer>
 """
 
-_DOCS_HTML = """<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Weather Data API — Reference</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/docs/swagger-ui.css">
-  <style>
-    body { margin: 0; background: #fafafa; }
-    .topbar { display: none; }
+
+# Swagger UI ships its own stylesheet and nothing of ours, so the footer carries
+# its own rules. Scoped under .site-footer so none of it can reach the API
+# reference above it.
+_FOOTER_CSS = """
     .site-footer {
       max-width: 1460px; margin: 0 auto; padding: 1.6rem 20px 2.4rem;
       border-top: 1px solid #e2e8f0;
@@ -386,6 +427,55 @@ _DOCS_HTML = """<!doctype html>
     .site-footer a[aria-current] { color: #7d8894; font-weight: 650; }
     .site-footer .sep { color: #cbd5e1; margin: 0 .4rem; }
     .site-footer .credit { margin: .9rem 0 0; font-size: .78rem; color: #7d8894; }
+"""
+
+
+def _problem_page(title: str, body: str) -> Response:
+    """A small static page for /problems: the docs' look, the estate footer."""
+    html = f"""<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>{escape(title)} — Weather Data API</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    body {{ margin: 0; background: #fafafa; color: #1f2933; }}
+    main {{
+      max-width: 760px; margin: 0 auto; padding: 2.4rem 20px 2rem;
+      font: 400 1rem/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }}
+    main a {{ color: #0b6bcb; }}
+    main code {{ font-size: .92em; background: #eef2f6; padding: .05em .3em; border-radius: 4px; }}
+    main li {{ margin: .3rem 0; }}
+    .crumbs {{ margin: 0; font-size: .9rem; }}
+{_FOOTER_CSS}
+  </style>
+</head>
+<body>
+  <main>
+    {body}
+    <p><a href="/docs">API reference</a></p>
+  </main>
+{_footer_html(request.path)}
+</body>
+</html>
+"""
+    resp = Response(html, mimetype="text/html")
+    # Static per deploy; let nginx's cache and browsers keep it a day.
+    resp.headers["Cache-Control"] = "public, max-age=86400"
+    return resp
+
+_DOCS_HTML = """<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Weather Data API — Reference</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/docs/swagger-ui.css">
+  <style>
+    body { margin: 0; background: #fafafa; }
+    .topbar { display: none; }
+<!--FOOTER_CSS-->
   </style>
 </head>
 <body>
@@ -408,7 +498,9 @@ _DOCS_HTML = """<!doctype html>
 </html>
 """
 
-_DOCS_HTML = _DOCS_HTML.replace("<!--SITE_FOOTER-->", _FOOTER_HTML)
+_DOCS_HTML = _DOCS_HTML.replace("<!--FOOTER_CSS-->", _FOOTER_CSS).replace(
+    "<!--SITE_FOOTER-->", _footer_html("/docs")
+)
 
 
 app = create_app()

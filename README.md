@@ -20,7 +20,7 @@ db.py          connection pools, per-connection guards, health probes
 datasets.py    the two Dataset records: all SQL lives here
 routes.py      the /v1 endpoints: validation, pagination, caching
 spec.py        the OpenAPI document, generated from datasets.py
-errors.py      RFC 9457 problem+json handlers
+errors.py      RFC 9457 problem+json handlers, and PROBLEMS: every `type` slug
 tests/         pytest suite (49 tests) against the real databases — read-only
 deploy/        systemd unit, gunicorn config, nginx vhost, provision/deploy, SQL
 ```
@@ -42,6 +42,7 @@ GET /v1/{dataset}/observations/date/{date}      one calendar day, all stations
 
 GET /                                           JSON index describing the service
 GET /docs  /openapi.json                        Swagger UI and the spec
+GET /problems  /problems/{slug}                 HTML docs for each problem `type` URI
 GET /health                                     liveness — never touches Postgres
 GET /ready                                      readiness — per-dataset database check
 ```
@@ -108,6 +109,8 @@ Each of these is a fix for something that was actually wrong or missing before.
   unavailable.
 - **RFC 9457 `application/problem+json`** for every error, carrying a
   `request_id` that appears in the structured logs so a caller can quote it.
+  Each `type` URI resolves: `/problems/<slug>` is a short HTML page per
+  `errors.PROBLEMS` entry (not in the OpenAPI spec; it documents, it isn't API).
 - **ISO 8601 timestamps.** Flask's default JSON encoder emits RFC 822
   (`"Mon, 15 Jan 2024 00:54:00 GMT"`), which no standard date parser accepts;
   a custom provider emits `2024-01-15T00:54:00Z`.

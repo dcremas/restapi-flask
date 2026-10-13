@@ -90,6 +90,36 @@ class TestOperations:
         assert client.get("/docs/swagger-ui-bundle.js").status_code == 200
         assert b"//cdn" not in client.get("/docs").data
 
+    def test_docs_footer_stays_in_this_tab(self, client):
+        """Estate link policy (2026-10-13): /docs is a browsing page, so the
+        cross-site row never forces a new tab."""
+        html = client.get("/docs").get_data(as_text=True)
+        footer = html.split('<footer class="site-footer">', 1)[1]
+        assert 'target="_blank"' not in footer
+        assert '<a href="/docs" aria-current="page">' in footer
+
+    def test_every_problem_type_uri_resolves(self, client):
+        """BUG: every `type` URI in a problem body 404ed. RFC 9457 says it
+        should lead to human-readable documentation."""
+        import errors
+
+        index = client.get("/problems").get_data(as_text=True)
+        for slug in errors.PROBLEMS:
+            assert f'href="/problems/{slug}"' in index
+            resp = client.get(f"/problems/{slug}")
+            assert resp.status_code == 200, slug
+            assert resp.mimetype == "text/html"
+        missing = client.get("/problems/no-such-problem")
+        assert missing.status_code == 404
+        assert missing.mimetype == "application/problem+json"
+
+    def test_index_paths_match_the_spec(self, client):
+        """BUG: the index advertised {date} where the route and spec say {date_str}."""
+        paths = body(client.get("/openapi.json"))["paths"]
+        for dataset in body(client.get("/"))["datasets"].values():
+            for endpoint in dataset["endpoints"]:
+                assert endpoint in paths, endpoint
+
 
 # ---------------------------------------------------------------------------
 # Shape and correctness

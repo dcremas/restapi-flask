@@ -26,6 +26,69 @@ PROBLEM_BASE = "https://api.dustincremascoli.com/problems"
 
 CONTENT_TYPE = "application/problem+json"
 
+# Every problem type this API (and nginx's /___unavailable fallback) can emit,
+# keyed by the slug at the end of its `type` URI. RFC 9457 §3.1.1: the type URI
+# should resolve to human-readable documentation, so GET /problems/<slug> renders
+# this entry (app.py) and an unknown slug 404s. A slug used in problem() below
+# but missing here would publish a `type` that 404s — add it here first.
+# (status, title, what it means and what to do about it)
+PROBLEMS: dict[str, tuple[int, str, str]] = {
+    "bad-request": (
+        400,
+        "Bad Request",
+        (
+            "A query parameter or path segment could not be used as given: a "
+            "non-integer or out-of-range limit/offset, a date that is not YYYY-MM-DD, "
+            "a 'from' after 'to', or a station id that is not 11 digits. `detail` "
+            "names the parameter. Fix the request; retrying it unchanged will fail "
+            "the same way."
+        ),
+    ),
+    "not-found": (
+        404,
+        "Not Found",
+        (
+            "No such endpoint, dataset or station. `detail` says which. The "
+            "available routes are listed at /docs and in /openapi.json."
+        ),
+    ),
+    "method-not-allowed": (
+        405,
+        "Method Not Allowed",
+        (
+            "This API is read-only. Every endpoint accepts GET (and HEAD/OPTIONS); "
+            "POST, PUT, PATCH and DELETE are refused."
+        ),
+    ),
+    "rate-limited": (
+        429,
+        "Too Many Requests",
+        (
+            "Too many requests from one address in a short window. Wait for the "
+            "number of seconds in the Retry-After header, then retry."
+        ),
+    ),
+    "internal-error": (
+        500,
+        "Internal Server Error",
+        (
+            "An unexpected error on the server. Nothing about the request needs "
+            "changing. Quote the `request_id` from the body (also the X-Request-Id "
+            "header) if you report it."
+        ),
+    ),
+    "service-unavailable": (
+        503,
+        "Service Unavailable",
+        (
+            "The API is restarting, or the database behind the requested dataset is "
+            "temporarily unreachable. The request was valid: retry after the "
+            "Retry-After interval. One dataset can be unavailable while the other "
+            "keeps serving; /ready reports each."
+        ),
+    ),
+}
+
 
 class ApiError(Exception):
     """An error with a deliberate HTTP status and a client-safe message."""
