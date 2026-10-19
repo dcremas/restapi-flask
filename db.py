@@ -74,10 +74,16 @@ class Database:
         routes that need this dataset fail, which is what lets one dataset
         outlive an outage in the other.
         """
+        # The check outside the lock is unlocked, so self._pool must only ever
+        # be assigned an OPEN pool: assigning first and opening after let a
+        # second gthread thread see a non-None pool in that gap, take it, and
+        # fail with "pool ... is not open yet" -- a 503 right after a restart
+        # or a worker recycle (max_requests). Same race as the Dash one in
+        # pbp/web/app.py, 2026-10-19.
         if self._pool is None:
             with self._lock:
                 if self._pool is None:
-                    self._pool = ConnectionPool(
+                    pool = ConnectionPool(
                         conninfo=self._conninfo,
                         min_size=self._min_size,
                         max_size=self._max_size,
@@ -92,7 +98,8 @@ class Database:
                         name=f"pool-{self.name}",
                         open=False,
                     )
-                    self._pool.open()
+                    pool.open()
+                    self._pool = pool
         return self._pool
 
     def close(self) -> None:
