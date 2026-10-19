@@ -400,7 +400,7 @@ def _footer_html(here: str) -> str:
       <p class="footer-nav-label">{_SITES_LABEL}</p>
       <ul>{_footer_items(here)}</ul>
     </nav>
-    <p class="credit">Produced with the aid of Claude Code&#39;s Command Line tools...</p>
+    <p class="credit">Produced with the help of Claude Code.</p>
   </footer>
 """
 
