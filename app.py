@@ -348,7 +348,7 @@ def _register_meta_routes(app: Flask) -> None:
 #
 # Swagger UI ends at the last endpoint and offers nothing after it -- no way
 # back to the site this API belongs to, no way across to the other services on
-# the box. This is the same eight-property row every other surface here puts at
+# the box. This is the same property row every other surface here puts at
 # the bottom of the page.
 #
 # Keep in step with prosite_flask/content.py SITES -- that is the canonical copy
@@ -357,8 +357,9 @@ def _register_meta_routes(app: Flask) -> None:
 #
 # `/docs` is relative because it is this service. Every entry opens in the same
 # tab: /docs is a browsing page with nothing in memory to lose, so the estate
-# link policy (2026-10-13) gives it no new-tab links — and therefore no new-tab
-# cue to carry.
+# link policy (2026-10-13) gives it no new-tab links. The exception is the three
+# games (2026-10-25, _NEW_TAB_KEYS), which open a new tab on every site, with the
+# cue: a visible arrow and "(opens in a new tab)" in the aria-label.
 _SITES = [
     ("www", "Main site", "https://www.dustincremascoli.com/"),
     ("viz", "Data Viz", "https://www.dustincremascoli.com/visualizations"),
@@ -368,7 +369,15 @@ _SITES = [
     ("plays", "Play Explorer", "https://pbp.dustincremascoli.com/plays/"),
     ("typing", "PromptPace", "https://typing.dustincremascoli.com/"),
     ("recipes", "Recipes", "https://recipes.dustincremascoli.com/"),
+    # The three games joined the row 2026-10-25.
+    ("mahjong", "Mahjong Solitaire", "https://mahjong.dustincremascoli.com/"),
+    ("dtiles", "D-Tiles", "https://dtiles.dustincremascoli.com/"),
+    ("solitaire", "Solitaire", "https://solitaire.dustincremascoli.com/"),
 ]
+
+# Entries that open in a new tab. A set beside the list rather than a fourth
+# tuple field: check-footer-nav.sh reads each row's last two fields as label, href.
+_NEW_TAB_KEYS = {"mahjong", "dtiles", "solitaire"}
 
 _SITES_CURRENT = "api"
 
@@ -389,6 +398,13 @@ def _footer_items(here: str) -> str:
         # The separator sits inside the <li>; a bare <span> child of a <ul> is
         # invalid and the parser lifts it out of the list.
         sep = "" if i == len(_SITES) - 1 else '<span class="sep" aria-hidden="true">·</span>'
+        if key in _NEW_TAB_KEYS:
+            out.append(
+                f'<li><a href="{href}" target="_blank" rel="noopener" '
+                f'aria-label="{label} (opens in a new tab)">{label}'
+                f' <span aria-hidden="true">↗</span></a>{sep}</li>'
+            )
+            continue
         out.append(f'<li><a href="{href}"{mark}>{label}</a>{sep}</li>')
     return "".join(out)
 
