@@ -491,6 +491,10 @@ _DOCS_HTML = """<!doctype html>
   <style>
     body { margin: 0; background: #fafafa; }
     .topbar { display: none; }
+    /* Swagger UI mounts after /openapi.json loads. Without a reserved height the
+       footer paints at the top of an empty page and is then pushed off screen,
+       which scored CLS 0.98 on mobile (Lighthouse, 2026-10-27). */
+    #swagger-ui { min-height: 100vh; }
 <!--FOOTER_CSS-->
   </style>
 </head>
@@ -505,6 +509,8 @@ _DOCS_HTML = """<!doctype html>
       deepLinking: true,
       tryItOutEnabled: true,
       defaultModelsExpandDepth: -1,
+      // The default posts our spec URL to validator.swagger.io on every load.
+      validatorUrl: null,
       presets: [SwaggerUIBundle.presets.apis, SwaggerUIStandalonePreset],
       layout: "StandaloneLayout"
     });

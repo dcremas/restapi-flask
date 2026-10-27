@@ -90,6 +90,13 @@ class TestOperations:
         assert client.get("/docs/swagger-ui-bundle.js").status_code == 200
         assert b"//cdn" not in client.get("/docs").data
 
+    def test_docs_hold_their_layout_and_stay_local(self, client):
+        """2026-10-27: the footer jumped when Swagger UI mounted (CLS 0.98),
+        and every load called validator.swagger.io."""
+        html = client.get("/docs").get_data(as_text=True)
+        assert "#swagger-ui { min-height: 100vh; }" in html
+        assert "validatorUrl: null" in html
+
     def test_docs_footer_stays_in_this_tab(self, client):
         """Estate link policy (2026-10-13): /docs is a browsing page, so the
         cross-site row never forces a new tab."""
