@@ -110,8 +110,9 @@ class TestOperations:
             "https://dtiles.dustincremascoli.com/",
             "https://mahjong.dustincremascoli.com/",
             "https://solitaire.dustincremascoli.com/",
+            "https://sudoku.dustincremascoli.com/",
         ]
-        assert footer.count('target="_blank"') == 3
+        assert footer.count('target="_blank"') == 4
         assert '<a href="/docs" aria-current="page">' in footer
 
     def test_every_problem_type_uri_resolves(self, client):

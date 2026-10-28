@@ -362,8 +362,8 @@ def _register_meta_routes(app: Flask) -> None:
 #
 # `/docs` is relative because it is this service. Every entry opens in the same
 # tab: /docs is a browsing page with nothing in memory to lose, so the estate
-# link policy (2026-10-13) gives it no new-tab links. The exception is the three
-# games (2026-10-25, _NEW_TAB_KEYS), which open a new tab on every site, with the
+# link policy (2026-10-13) gives it no new-tab links. The exception is the
+# games (2026-10-25, sudoku 2026-10-28; _NEW_TAB_KEYS), which open a new tab on every site, with the
 # cue: a visible arrow and "(opens in a new tab)" in the aria-label.
 _SITES = [
     ("www", "Main site", "https://www.dustincremascoli.com/"),
@@ -378,11 +378,12 @@ _SITES = [
     ("mahjong", "Mahjong Solitaire", "https://mahjong.dustincremascoli.com/"),
     ("dtiles", "D-Tiles", "https://dtiles.dustincremascoli.com/"),
     ("solitaire", "Solitaire", "https://solitaire.dustincremascoli.com/"),
+    ("sudoku", "Sudoku", "https://sudoku.dustincremascoli.com/"),
 ]
 
 # Entries that open in a new tab. A set beside the list rather than a fourth
 # tuple field: check-footer-nav.sh reads each row's last two fields as label, href.
-_NEW_TAB_KEYS = {"mahjong", "dtiles", "solitaire"}
+_NEW_TAB_KEYS = {"mahjong", "dtiles", "solitaire", "sudoku"}
 
 _SITES_CURRENT = "api"
 
