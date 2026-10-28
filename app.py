@@ -11,9 +11,12 @@ datasets.py and the HTTP shaping in routes.py.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
 import logging
 import os
+import re
 import sys
 import time
 import uuid
@@ -201,6 +204,8 @@ def _register_request_lifecycle(app: Flask) -> None:
         response.headers.setdefault("Access-Control-Max-Age", "86400")
         response.headers.setdefault("X-Content-Type-Options", "nosniff")
         response.headers.setdefault("Referrer-Policy", "no-referrer")
+        if response.mimetype == "text/html":
+            response.headers.setdefault("Content-Security-Policy", _HTML_CSP)
 
         app.logger.info(
             "request",
@@ -446,6 +451,21 @@ _FOOTER_CSS = """
 """
 
 
+# One constant rather than inline in the f-string below, so its hash can be taken
+# for the Content-Security-Policy (see _HTML_CSP).
+_PROBLEM_CSS = """
+    body { margin: 0; background: #fafafa; color: #1f2933; }
+    main {
+      max-width: 760px; margin: 0 auto; padding: 2.4rem 20px 2rem;
+      font: 400 1rem/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    }
+    main a { color: #0b6bcb; }
+    main code { font-size: .92em; background: #eef2f6; padding: .05em .3em; border-radius: 4px; }
+    main li { margin: .3rem 0; }
+    .crumbs { margin: 0; font-size: .9rem; }
+""" + _FOOTER_CSS
+
+
 def _problem_page(title: str, body: str) -> Response:
     """A small static page for /problems: the docs' look, the estate footer."""
     html = f"""<!doctype html>
@@ -454,18 +474,7 @@ def _problem_page(title: str, body: str) -> Response:
   <meta charset="utf-8">
   <title>{escape(title)} — Weather Data API</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    body {{ margin: 0; background: #fafafa; color: #1f2933; }}
-    main {{
-      max-width: 760px; margin: 0 auto; padding: 2.4rem 20px 2rem;
-      font: 400 1rem/1.6 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-    }}
-    main a {{ color: #0b6bcb; }}
-    main code {{ font-size: .92em; background: #eef2f6; padding: .05em .3em; border-radius: 4px; }}
-    main li {{ margin: .3rem 0; }}
-    .crumbs {{ margin: 0; font-size: .9rem; }}
-{_FOOTER_CSS}
-  </style>
+  <style>{_PROBLEM_CSS}</style>
 </head>
 <body>
   <main>
@@ -523,6 +532,34 @@ _DOCS_HTML = """<!doctype html>
 _DOCS_HTML = _DOCS_HTML.replace("<!--FOOTER_CSS-->", _FOOTER_CSS).replace(
     "<!--SITE_FOOTER-->", _footer_html("/docs")
 )
+
+
+def _csp_hash(text: str) -> str:
+    return "'sha256-" + base64.b64encode(hashlib.sha256(text.encode()).digest()).decode() + "'"
+
+
+def _inline_blocks(html: str, tag: str) -> list[str]:
+    """The bodies of a page's inline <script> or <style> elements."""
+    return re.findall(rf"<{tag}(?![^>]*\bsrc=)[^>]*>(.*?)</{tag}>", html, re.S)
+
+
+# Content-Security-Policy for the HTML pages, /docs and /problems (2026-10-28).
+# Their only inline script and styles are the fixed blocks in _DOCS_HTML and
+# _PROBLEM_CSS, allowed by hash. The hashes are taken here from those constants,
+# never from a response, so nothing that reached a page any other way is allowed.
+_HTML_CSP = "; ".join([
+    "default-src 'self'",
+    "script-src 'self' " + " ".join(_csp_hash(b) for b in _inline_blocks(_DOCS_HTML, "script")),
+    "style-src 'self' " + " ".join(
+        _csp_hash(b) for b in [*_inline_blocks(_DOCS_HTML, "style"), _PROBLEM_CSS]),
+    "img-src 'self' data:",
+    "font-src 'self'",
+    "connect-src 'self'",
+    "frame-ancestors 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+    "object-src 'none'",
+])
 
 
 app = create_app()
