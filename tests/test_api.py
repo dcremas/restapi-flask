@@ -99,10 +99,19 @@ class TestOperations:
 
     def test_docs_footer_stays_in_this_tab(self, client):
         """Estate link policy (2026-10-13): /docs is a browsing page, so the
-        cross-site row never forces a new tab."""
+        cross-site row stays in this tab. The exception since 2026-10-25 is the
+        three games, which open a new tab from every site."""
+        import re
+
         html = client.get("/docs").get_data(as_text=True)
         footer = html.split('<footer class="site-footer">', 1)[1]
-        assert 'target="_blank"' not in footer
+        new_tab = re.findall(r'<a href="([^"]+)" target="_blank"', footer)
+        assert sorted(new_tab) == [
+            "https://dtiles.dustincremascoli.com/",
+            "https://mahjong.dustincremascoli.com/",
+            "https://solitaire.dustincremascoli.com/",
+        ]
+        assert footer.count('target="_blank"') == 3
         assert '<a href="/docs" aria-current="page">' in footer
 
     def test_every_problem_type_uri_resolves(self, client):
